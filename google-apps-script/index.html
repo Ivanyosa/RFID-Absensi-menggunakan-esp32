@@ -1,0 +1,913 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Hellsing | RFID Attendance</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --red: #d71920;
+      --red-dark: #8d0710;
+      --red-glow: rgba(215, 25, 32, 0.35);
+      --black: #090607;
+      --panel: rgba(15, 10, 12, 0.88);
+      --white: #f5eeee;
+      --muted: #b6a5a8;
+      --border: rgba(215, 25, 32, 0.35);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 35px 18px 50px;
+      font-family: 'Roboto', sans-serif;
+      color: var(--white);
+      background-color: var(--black);
+
+      /* Background anime gothic */
+      background-image:
+        linear-gradient(
+          90deg,
+          rgba(5, 3, 5, 0.94) 0%,
+          rgba(10, 4, 7, 0.82) 55%,
+          rgba(15, 2, 5, 0.58) 100%
+        ),
+        linear-gradient(
+          0deg,
+          rgba(5, 3, 5, 0.95),
+          transparent 60%
+        ),
+        url("https://i.pinimg.com/1200x/d2/93/f9/d293f9b23a027adb101837bd24800246.jpg");
+
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      overflow-x: hidden;
+    }
+
+    /* Cahaya merah bergerak perlahan */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: -50%;
+      z-index: -1;
+      pointer-events: none;
+      background:
+        radial-gradient(
+          circle at 25% 35%,
+          rgba(150, 0, 15, 0.18),
+          transparent 35%
+        ),
+        radial-gradient(
+          circle at 80% 75%,
+          rgba(190, 0, 15, 0.12),
+          transparent 30%
+        );
+      animation: bloodLight 12s ease-in-out infinite alternate;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 760px;
+      margin: 0 auto;
+      animation: pageEnter 0.9s ease-out both;
+    }
+
+    /* HEADER */
+
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding: 20px 10px;
+      position: relative;
+    }
+
+    .header::after {
+      content: "";
+      display: block;
+      width: 145px;
+      height: 2px;
+      margin: 19px auto 0;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        var(--red),
+        transparent
+      );
+      box-shadow: 0 0 14px var(--red-glow);
+    }
+
+    .eyebrow {
+      color: #e74a50;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    h1,
+    h2,
+    .brand {
+      font-family: 'Cinzel', serif;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(34px, 7vw, 58px);
+      font-weight: 800;
+      letter-spacing: 3px;
+      line-height: 1.2;
+      text-shadow:
+        0 0 12px rgba(215, 25, 32, 0.4),
+        2px 3px 0 #51070b;
+    }
+
+    h1 span {
+      color: var(--red);
+    }
+
+    .subtitle {
+      margin: 13px 0 0;
+      color: #c6b7b9;
+      font-size: 13px;
+      letter-spacing: 1.5px;
+      line-height: 1.8;
+    }
+
+    .seal {
+      display: inline-block;
+      margin-top: 19px;
+      padding: 6px 13px;
+      border: 1px solid rgba(215, 25, 32, 0.55);
+      color: #ef6268;
+      font-family: 'Cinzel', serif;
+      font-size: 10px;
+      letter-spacing: 2px;
+      background: rgba(30, 0, 5, 0.55);
+    }
+
+    /* PANEL */
+
+    .card {
+      position: relative;
+      padding: 25px;
+      margin-top: 20px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      box-shadow:
+        0 10px 35px rgba(0, 0, 0, 0.4),
+        inset 0 0 25px rgba(100, 0, 10, 0.06);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      animation: cardEnter 0.65s ease both;
+      transition:
+        border-color 0.3s ease,
+        box-shadow 0.3s ease,
+        transform 0.3s ease;
+    }
+
+    .card:hover {
+      border-color: rgba(215, 25, 32, 0.65);
+      box-shadow:
+        0 12px 40px rgba(0, 0, 0, 0.5),
+        0 0 18px rgba(215, 25, 32, 0.08);
+    }
+
+    .card::before,
+    .card::after {
+      content: "";
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      pointer-events: none;
+    }
+
+    .card::before {
+      top: -1px;
+      left: -1px;
+      border-top: 2px solid var(--red);
+      border-left: 2px solid var(--red);
+    }
+
+    .card::after {
+      right: -1px;
+      bottom: -1px;
+      border-right: 2px solid var(--red);
+      border-bottom: 2px solid var(--red);
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 0 0 23px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid rgba(215, 25, 32, 0.24);
+    }
+
+    .section-number {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      width: 35px;
+      height: 35px;
+      color: white;
+      background: linear-gradient(145deg, #d71920, #72040b);
+      font-family: 'Cinzel', serif;
+      font-size: 13px;
+      box-shadow: 0 0 13px rgba(215, 25, 32, 0.18);
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+
+    .section-caption {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    /* FORM */
+
+    label {
+      display: block;
+      margin: 17px 0 8px;
+      color: #e7cdd0;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.8px;
+    }
+
+    input {
+      display: block;
+      width: 100%;
+      padding: 13px 14px;
+      border: 1px solid #483035;
+      border-radius: 2px;
+      outline: none;
+      color: #fff;
+      background: rgba(5, 4, 5, 0.75);
+      font-family: 'Roboto', sans-serif;
+      font-size: 14px;
+      transition:
+        border-color 0.25s ease,
+        box-shadow 0.25s ease,
+        background 0.25s ease;
+    }
+
+    input::placeholder {
+      color: #75666a;
+    }
+
+    input:focus {
+      border-color: var(--red);
+      background: rgba(25, 5, 8, 0.9);
+      box-shadow: 0 0 0 3px rgba(215, 25, 32, 0.1);
+    }
+
+    /* BUTTON */
+
+    button {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid transparent;
+      border-radius: 2px;
+      padding: 12px 17px;
+      cursor: pointer;
+      font-family: 'Roboto', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      transition:
+        background 0.25s ease,
+        color 0.25s ease,
+        border-color 0.25s ease,
+        box-shadow 0.25s ease,
+        transform 0.2s ease;
+    }
+
+    button:active {
+      transform: scale(0.97);
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: wait;
+    }
+
+    .primary {
+      margin-top: 17px;
+      color: #fff;
+      background: linear-gradient(115deg, #a90913, #d71920 55%, #8a0710);
+      border-color: #e02b32;
+      box-shadow: 0 4px 15px rgba(160, 0, 15, 0.15);
+    }
+
+    .primary:hover:not(:disabled) {
+      background: linear-gradient(115deg, #d71920, #f02a33, #a90913);
+      box-shadow: 0 0 20px rgba(215, 25, 32, 0.28);
+    }
+
+    .primary::after {
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -70%;
+      width: 35%;
+      height: 200%;
+      background: rgba(255, 255, 255, 0.13);
+      transform: rotate(25deg);
+      transition: left 0.5s ease;
+    }
+
+    .primary:hover::after {
+      left: 130%;
+    }
+
+    .danger {
+      flex-shrink: 0;
+      color: #ffb9bd;
+      background: rgba(130, 5, 15, 0.18);
+      border-color: rgba(215, 25, 32, 0.45);
+      padding: 9px 12px;
+    }
+
+    .danger:hover {
+      color: #fff;
+      background: #a40b14;
+      border-color: #f03b43;
+      box-shadow: 0 0 12px rgba(215, 25, 32, 0.2);
+    }
+
+    /* STATUS */
+
+    .status {
+      margin: 15px 0 0;
+      padding: 0;
+      font-size: 13px;
+      line-height: 1.7;
+      overflow-wrap: anywhere;
+      color: #cdbcc0;
+    }
+
+    .status:empty {
+      display: none;
+    }
+
+    #statusAkses,
+    #statusTambah {
+      white-space: pre-wrap;
+    }
+
+    /* LIST KARTU */
+
+    #daftarKartu {
+      color: #b9a9ad;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+
+    .item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      padding: 16px 13px;
+      margin: 9px 0;
+      border: 1px solid rgba(130, 80, 85, 0.2);
+      border-left: 2px solid #8f1018;
+      background: rgba(255, 255, 255, 0.025);
+      animation: itemEnter 0.35s ease both;
+      transition:
+        background 0.25s ease,
+        border-color 0.25s ease,
+        transform 0.25s ease;
+    }
+
+    .item:hover {
+      background: rgba(150, 0, 15, 0.09);
+      border-color: rgba(215, 25, 32, 0.3);
+      border-left-color: #ed252e;
+      transform: translateX(3px);
+    }
+
+    .item-info {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .item-name {
+      display: block;
+      margin-bottom: 5px;
+      color: #fff0f0;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .muted {
+      color: #ad999e;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .uid-label {
+      color: #d16b72;
+      font-family: monospace;
+      font-size: 12px;
+      letter-spacing: 0.3px;
+    }
+
+    .list-footer {
+      margin-top: 17px;
+      padding-top: 13px;
+      border-top: 1px solid rgba(215, 25, 32, 0.2);
+      color: #a99296;
+      font-size: 11px;
+      letter-spacing: 1px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* FOOTER */
+
+    .footer {
+      padding: 28px 8px 0;
+      text-align: center;
+      color: #8c797d;
+      font-size: 10px;
+      letter-spacing: 2px;
+      line-height: 2;
+    }
+
+    .footer span {
+      color: #c62b34;
+    }
+
+    /* ANIMASI */
+
+    @keyframes pageEnter {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes cardEnter {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes itemEnter {
+      from {
+        opacity: 0;
+        transform: translateY(7px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes bloodLight {
+      from {
+        transform: translate(-2%, -1%);
+        opacity: 0.65;
+      }
+      to {
+        transform: translate(2%, 1%);
+        opacity: 1;
+      }
+    }
+
+    /* HP / LAYAR KECIL */
+
+    @media (max-width: 520px) {
+      body {
+        padding: 18px 12px 30px;
+        background-attachment: scroll;
+      }
+
+      .header {
+        padding: 18px 5px;
+        margin-bottom: 20px;
+      }
+
+      .eyebrow {
+        font-size: 9px;
+        letter-spacing: 3px;
+      }
+
+      h1 {
+        letter-spacing: 1px;
+      }
+
+      .subtitle {
+        font-size: 12px;
+        letter-spacing: 0.5px;
+      }
+
+      .card {
+        padding: 19px 16px;
+        margin-top: 15px;
+      }
+
+      h2 {
+        font-size: 15px;
+      }
+
+      .item {
+        padding: 13px 9px;
+        gap: 8px;
+      }
+
+      .danger {
+        padding: 9px;
+        font-size: 10px;
+        letter-spacing: 0.4px;
+      }
+    }
+
+    /* Hormati pengaturan pengguna yang mengurangi animasi */
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="container">
+
+    <header class="header">
+      <div class="eyebrow">Hellsing Organization</div>
+
+      <h1>HELLSING HIGHSCHOOL <span>ABSENSI</span></h1>
+
+      <p class="subtitle">
+        PANEL ADMIN<br>
+        Sistem Manajemen Kartu Mahasiswa
+      </p>
+
+      <div class="seal">CLASSIFIED SYSTEM · AUTHORIZED ACCESS ONLY</div>
+    </header>
+
+    <!-- AKSES ADMIN -->
+    <section class="card">
+      <div class="section-heading">
+        <div class="section-number">01</div>
+        <div>
+          <h2>Akses Administrator</h2>
+          <p class="section-caption">
+            Masukkan PIN untuk membuka sistem pengelolaan kartu.
+          </p>
+        </div>
+      </div>
+
+      <label for="pin">PIN ADMIN</label>
+      <input
+        id="pin"
+        type="password"
+        placeholder="Masukkan PIN administrator"
+        autocomplete="current-password"
+      >
+
+      <button
+        id="btnAkses"
+        class="primary"
+        type="button"
+        onclick="muatKartu()"
+      >
+        Buka Daftar Kartu
+      </button>
+
+      <p id="statusAkses" class="status" role="status" aria-live="polite"></p>
+    </section>
+
+    <!-- PANEL UTAMA -->
+    <section id="panel" class="hidden">
+
+      <!-- TAMBAH KARTU -->
+      <section class="card">
+        <div class="section-heading">
+          <div class="section-number">02</div>
+          <div>
+            <h2>Registrasi Kartu</h2>
+            <p class="section-caption">
+              Daftarkan UID RFID dan identitas mahasiswa baru.
+            </p>
+          </div>
+        </div>
+
+        <label for="uid">UID KARTU RFID</label>
+        <input
+          id="uid"
+          type="text"
+          placeholder="Contoh: XXX XX XX XX "
+          autocomplete="off"
+        >
+
+        <label for="nama">NAMA MAHASISWA</label>
+        <input
+          id="nama"
+          type="text"
+          placeholder="Masukkan nama lengkap"
+          autocomplete="off"
+        >
+
+        <button
+          id="btnTambah"
+          class="primary"
+          type="button"
+          onclick="tambahKartu()"
+        >
+          + Tambah Kartu
+        </button>
+
+        <p id="statusTambah" class="status" role="status" aria-live="polite"></p>
+      </section>
+
+      <!-- DAFTAR KARTU -->
+      <section class="card">
+        <div class="section-heading">
+          <div class="section-number">03</div>
+          <div>
+            <h2>Arsip Kartu Terdaftar</h2>
+            <p class="section-caption">
+              Daftar identitas kartu yang tersimpan di Google Sheets.
+            </p>
+          </div>
+        </div>
+
+        <div id="daftarKartu" aria-live="polite">
+          Memuat daftar kartu...
+        </div>
+
+        <div id="listFooter" class="list-footer hidden"></div>
+      </section>
+
+    </section>
+
+    <footer class="footer">
+      <div>HELLSING ORGANIZATION</div>
+      <div>RFID ATTENDANCE SYSTEM <span>◆</span> SECURE ACCESS</div>
+    </footer>
+
+  </main>
+
+  <script>
+    function tampilkanStatus(id, pesan) {
+      document.getElementById(id).textContent = pesan;
+    }
+
+    function aturLoading(id, loading, teksLoading, teksNormal) {
+      const tombol = document.getElementById(id);
+      tombol.disabled = loading;
+      tombol.textContent = loading ? teksLoading : teksNormal;
+    }
+
+    function muatKartu() {
+      const pin = document.getElementById("pin").value.trim();
+
+      if (!pin) {
+        tampilkanStatus("statusAkses", "PIN admin wajib diisi.");
+        document.getElementById("pin").focus();
+        return;
+      }
+
+      aturLoading(
+        "btnAkses",
+        true,
+        "Memeriksa akses...",
+        "Buka Daftar Kartu"
+      );
+
+      tampilkanStatus("statusAkses", "Memeriksa otorisasi administrator...");
+
+      google.script.run
+        .withSuccessHandler(function(hasil) {
+          aturLoading(
+            "btnAkses",
+            false,
+            "",
+            "Buka Daftar Kartu"
+          );
+
+          document.getElementById("panel").classList.remove("hidden");
+          tampilkanStatus("statusAkses", "Akses administrator berhasil.");
+
+          renderKartu(hasil);
+        })
+        .withFailureHandler(function(error) {
+          aturLoading(
+            "btnAkses",
+            false,
+            "",
+            "Buka Daftar Kartu"
+          );
+
+          document.getElementById("panel").classList.add("hidden");
+
+          tampilkanStatus(
+            "statusAkses",
+            "Akses ditolak: " + (error.message || error)
+          );
+        })
+        .daftarKartu(pin);
+    }
+
+    function tambahKartu() {
+      const pin = document.getElementById("pin").value.trim();
+      const uid = document.getElementById("uid").value.trim();
+      const nama = document.getElementById("nama").value.trim();
+
+      if (!pin) {
+        tampilkanStatus("statusTambah", "Masukkan PIN admin terlebih dahulu.");
+        return;
+      }
+
+      if (!uid || !nama) {
+        tampilkanStatus(
+          "statusTambah",
+          "UID kartu dan nama mahasiswa wajib diisi."
+        );
+        return;
+      }
+
+      aturLoading(
+        "btnTambah",
+        true,
+        "Menyimpan kartu...",
+        "+ Tambah Kartu"
+      );
+
+      tampilkanStatus("statusTambah", "Mengirim data kartu ke Google Sheets...");
+
+      google.script.run
+        .withSuccessHandler(function(pesan) {
+          aturLoading(
+            "btnTambah",
+            false,
+            "",
+            "+ Tambah Kartu"
+          );
+
+          tampilkanStatus("statusTambah", pesan);
+
+          document.getElementById("uid").value = "";
+          document.getElementById("nama").value = "";
+
+          muatKartu();
+        })
+        .withFailureHandler(function(error) {
+          aturLoading(
+            "btnTambah",
+            false,
+            "",
+            "+ Tambah Kartu"
+          );
+
+          tampilkanStatus(
+            "statusTambah",
+            "Gagal menyimpan kartu: " + (error.message || error)
+          );
+        })
+        .tambahKartu(uid, nama, pin);
+    }
+
+    function renderKartu(kartu) {
+      const daftar = document.getElementById("daftarKartu");
+      const footer = document.getElementById("listFooter");
+
+      daftar.replaceChildren();
+      footer.classList.add("hidden");
+
+      if (!kartu || kartu.length === 0) {
+        daftar.textContent = "Belum ada kartu terdaftar.";
+        return;
+      }
+
+      kartu.forEach(function(item, indeks) {
+        const baris = document.createElement("div");
+        baris.className = "item";
+        baris.style.animationDelay = Math.min(indeks * 45, 400) + "ms";
+
+        const info = document.createElement("div");
+        info.className = "item-info";
+
+        const nama = document.createElement("strong");
+        nama.className = "item-name";
+        nama.textContent = item.nama;
+
+        const uid = document.createElement("div");
+        uid.className = "uid-label";
+        uid.textContent = "UID: " + item.uid;
+
+        info.append(nama, uid);
+
+        const tombol = document.createElement("button");
+        tombol.className = "danger";
+        tombol.type = "button";
+        tombol.textContent = "Hapus";
+
+        tombol.onclick = function() {
+          hapusKartu(item.uid, tombol);
+        };
+
+        baris.append(info, tombol);
+        daftar.appendChild(baris);
+      });
+
+      footer.textContent = "TOTAL KARTU TERDAFTAR: " + kartu.length;
+      footer.classList.remove("hidden");
+    }
+
+    function hapusKartu(uid, tombol) {
+      if (!confirm("Yakin ingin menghapus kartu UID " + uid + "?")) {
+        return;
+      }
+
+      const pin = document.getElementById("pin").value.trim();
+
+      tampilkanStatus(
+        "statusTambah",
+        "Sedang menghapus kartu UID " + uid + "..."
+      );
+
+      tombol.disabled = true;
+      tombol.textContent = "Menghapus...";
+
+      google.script.run
+        .withSuccessHandler(function(pesan) {
+          tampilkanStatus("statusTambah", pesan);
+          muatKartu();
+        })
+        .withFailureHandler(function(error) {
+          tombol.disabled = false;
+          tombol.textContent = "Hapus";
+
+          tampilkanStatus(
+            "statusTambah",
+            "Gagal menghapus: " + (error.message || error)
+          );
+        })
+        .hapusKartu(uid, pin);
+    }
+
+    // Tekan Enter pada kolom PIN untuk membuka daftar kartu.
+    document.getElementById("pin").addEventListener("keydown", function(event) {
+      if (event.key === "Enter") {
+        muatKartu();
+      }
+    });
+
+    // Tekan Enter pada kolom nama untuk menambahkan kartu.
+    document.getElementById("nama").addEventListener("keydown", function(event) {
+      if (event.key === "Enter") {
+        tambahKartu();
+      }
+    });
+  </script>
+</body>
+</html>
