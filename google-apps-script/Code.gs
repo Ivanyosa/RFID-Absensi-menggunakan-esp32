@@ -65,105 +65,239 @@ function responseJSON_(data) {
 // 5. MENERIMA DATA ABSENSI DARI ESP32
 // ================================================
 
+
 function doPost(e) {
+  const lock = LockService.getScriptLock();
+
   try {
+    // 1. Periksa konfigurasi
     const config = getConfig_();
 
+    // 2. Periksa data POST
     if (!e || !e.postData || !e.postData.contents) {
       throw new Error("Data POST tidak ditemukan.");
     }
 
-    const data = JSON.parse(e.postData.contents);
+    // 3. Baca JSON
+    let data;
 
-    // Validasi token ESP32
-    if (data.token !== config.API_TOKEN) {
-      return ContentService.createTextOutput("Akses ditolak.");
+    try {
+      data = JSON.parse(e.postData.contents);
+    } catch (error) {
+      throw new Error("Format JSON tidak valid.");
     }
 
-    if (!data.uid || !data.nama) {
-      throw new Error("UID dan nama wajib diisi.");
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+      throw new Error("Format data tidak valid.");
     }
 
-    const spreadsheet = getSpreadsheet_();
+    // 4. Validasi API Token
+    if (
+      typeof data.token !== "string" ||
+      data.token !== config.API_TOKEN
+    ) {
+      return responseJSON_({
+        ok: false,
+        message: "Akses ditolak."
+      });
+    }
 
-    // Mengambil waktu dari ESP32
+    // 5. Validasi UID
+    const uid = String(data.uid || "").trim();
+
+    const polaUID = /^\d{1,3}( \d{1,3}){3,9}$/;
+
+    if (!polaUID.test(uid)) {
+      throw new Error("Format UID tidak valid.");
+    }
+
+    const byteUID = uid.split(" ").map(Number);
+
+    if (byteUID.some(byte => byte < 0 || byte > 255)) {
+      throw new Error("Nilai UID tidak valid.");
+    }
+
+    // 6. Validasi status absensi
+    if (data.status !== "ABSEN BERHASIL") {
+      throw new Error("Status absensi tidak valid.");
+    }
+
+    // 7. Validasi waktu dari ESP32
+    const zonaWaktu = "Asia/Jakarta";
     let waktu = new Date();
 
     if (
       data.waktu &&
       data.waktu !== "Waktu tidak tersedia"
     ) {
+      if (typeof data.waktu !== "string") {
+        throw new Error("Format waktu tidak valid.");
+      }
+
       const cocok = data.waktu.match(
         /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/
       );
 
-      if (cocok) {
-        waktu = new Date(
-          Date.UTC(
-            Number(cocok[1]),
-            Number(cocok[2]) - 1,
-            Number(cocok[3]),
-            Number(cocok[4]) - 7,
-            Number(cocok[5]),
-            Number(cocok[6])
-          )
-        );
+      if (!cocok) {
+        throw new Error("Format waktu tidak valid.");
+      }
+
+      const tahun = Number(cocok[1]);
+      const bulan = Number(cocok[2]);
+      const tanggal = Number(cocok[3]);
+      const jam = Number(cocok[4]);
+      const menit = Number(cocok[5]);
+      const detik = Number(cocok[6]);
+
+      if (
+        tahun < 2000 ||
+        bulan < 1 || bulan > 12 ||
+        tanggal < 1 || tanggal > 31 ||
+        jam < 0 || jam > 23 ||
+        menit < 0 || menit > 59 ||
+        detik < 0 || detik > 59
+      ) {
+        throw new Error("Nilai waktu tidak valid.");
+      }
+
+      // Konversi WIB ke UTC
+      waktu = new Date(
+        Date.UTC(
+          tahun,
+          bulan - 1,
+          tanggal,
+          jam - 7,
+          menit,
+          detik
+        )
+      );
+
+      // Pastikan tanggal dan waktu benar-benar valid
+      const waktuValid = Utilities.formatDate(
+        waktu,
+        zonaWaktu,
+        "yyyy-MM-dd HH:mm:ss"
+      );
+
+      if (waktuValid !== data.waktu) {
+        throw new Error("Tanggal atau waktu tidak valid.");
       }
     }
 
-    // Nama sheet berdasarkan tanggal WIB
-    const zonaWaktu = "Asia/Jakarta";
+    // 8. Kunci proses agar tidak terjadi absensi ganda bersamaan
+    lock.waitLock(10000);
 
+    // 9. Ambil spreadsheet dan daftar kartu
+    const spreadsheet = getSpreadsheet_();
+    const sheetKartu = getSheetKartu_();
+
+    const daftarKartu = sheetKartu.getDataRange().getValues();
+
+    let namaTerdaftar = "";
+
+    for (let i = 1; i < daftarKartu.length; i++) {
+      const uidSheet = String(daftarKartu[i][0] || "").trim();
+
+      if (uidSheet === uid) {
+        namaTerdaftar = String(daftarKartu[i][1] || "").trim();
+        break;
+      }
+    }
+
+    // 10. Pastikan UID terdaftar
+    if (!namaTerdaftar) {
+      throw new Error("Kartu tidak terdaftar.");
+    }
+
+    // 11. Tentukan sheet berdasarkan tanggal WIB
     const namaSheet = Utilities.formatDate(
       waktu,
       zonaWaktu,
       "dd-MM-yyyy"
     );
 
-    let sheet = spreadsheet.getSheetByName(namaSheet);
+    let sheetAbsensi = spreadsheet.getSheetByName(namaSheet);
 
-    // Membuat sheet baru jika belum tersedia
-    if (!sheet) {
-      sheet = spreadsheet.insertSheet(namaSheet);
+    // Buat sheet baru jika belum tersedia
+    if (!sheetAbsensi) {
+      sheetAbsensi = spreadsheet.insertSheet(namaSheet);
 
-      sheet.appendRow([
+      sheetAbsensi.getRange(1, 1, 1, 4).setValues([[
         "Waktu",
         "UID",
         "Nama",
         "Status"
-      ]);
+      ]]);
 
-      sheet.setFrozenRows(1);
+      sheetAbsensi.setFrozenRows(1);
     }
 
-    // Menyimpan data absensi
-    sheet.appendRow([
+    // 12. Cegah UID absen lebih dari sekali pada tanggal yang sama
+    const barisTerakhir = sheetAbsensi.getLastRow();
+
+    if (barisTerakhir >= 2) {
+      const daftarUIDAbsen = sheetAbsensi
+        .getRange(2, 2, barisTerakhir - 1, 1)
+        .getDisplayValues();
+
+      const sudahAbsen = daftarUIDAbsen.some(row =>
+        String(row[0]).trim() === uid
+      );
+
+      if (sudahAbsen) {
+        throw new Error("Kartu ini sudah melakukan absensi hari ini.");
+      }
+    }
+
+    // 13. Simpan absensi
+    const barisBaru = sheetAbsensi.getLastRow() + 1;
+
+    const rangeBaru = sheetAbsensi.getRange(
+      barisBaru,
+      1,
+      1,
+      4
+    );
+
+    // Format kolom UID, Nama, dan Status sebagai teks biasa
+    sheetAbsensi.getRange(barisBaru, 2, 1, 3)
+      .setNumberFormat("@");
+
+    rangeBaru.setValues([[
       waktu,
-      String(data.uid),
-      String(data.nama),
-      String(data.status || "")
-    ]);
+      uid,
+      namaTerdaftar,
+      "ABSEN BERHASIL"
+    ]]);
 
-    // Format waktu
-    const barisTerakhir = sheet.getLastRow();
-
-    sheet.getRange(barisTerakhir, 1)
+    sheetAbsensi.getRange(barisBaru, 1)
       .setNumberFormat("dd/MM/yyyy HH:mm:ss");
 
-    return ContentService.createTextOutput(
-      "Absensi berhasil disimpan ke " + namaSheet
-    );
+    SpreadsheetApp.flush();
+
+    // 14. Berhasil
+    return responseJSON_({
+      ok: true,
+      message: "Absensi berhasil disimpan.",
+      nama: namaTerdaftar,
+      uid: uid,
+      sheet: namaSheet
+    });
 
   } catch (error) {
     console.error(error);
 
-    return ContentService.createTextOutput(
-      "Error: " + error.message
-    );
+    return responseJSON_({
+      ok: false,
+      message: error.message
+    });
+
+  } finally {
+    if (lock.hasLock()) {
+      lock.releaseLock();
+    }
   }
 }
-
-
 
 // ================================================
 // 6. HALAMAN UTAMA WEB ADMIN
