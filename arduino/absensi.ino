@@ -77,7 +77,9 @@ bool ambilKartuDariGoogleSheets() {
   https.setConnectTimeout(20000);
   https.setTimeout(20000);
 
-  String url = String(scriptURL) + "?aksi=daftarKartu";
+  String url = String(scriptURL)
+           + "?aksi=daftarKartu&token="
+           + tokenRahasia;
 
   Serial.print("URL yang diakses ESP32: ");
   Serial.println(url);
