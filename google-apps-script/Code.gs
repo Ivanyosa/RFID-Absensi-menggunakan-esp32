@@ -1,14 +1,4 @@
 
-/**************************************************
- * SISTEM ABSENSI RFID ESP32 + GOOGLE SHEETS
- * melalui Script Properties.
- **************************************************/
-
-
-// ================================================
-// 1. KONFIGURASI
-// ================================================
-
 function getConfig_() {
   const properties = PropertiesService.getScriptProperties();
 
@@ -27,10 +17,6 @@ function getConfig_() {
   return config;
 }
 
-
-// ================================================
-// 2. KONEKSI GOOGLE SHEETS
-// ================================================
 
 function getSpreadsheet_() {
   const config = getConfig_();
@@ -178,6 +164,7 @@ function doPost(e) {
 }
 
 
+
 // ================================================
 // 6. HALAMAN UTAMA WEB ADMIN
 // ================================================
@@ -208,16 +195,14 @@ function doGet(e) {
       .setTitle("Admin Absensi RFID");
 
   } catch (error) {
+    console.error(error);
+
     return ContentService.createTextOutput(
       "Error: " + error.message
     );
   }
 }
 
-
-// ================================================
-// 7. MENGAMBIL DAFTAR KARTU UNTUK ESP32
-// ================================================
 
 function ambilDaftarKartuESP32_() {
   const sheet = getSheetKartu_();
